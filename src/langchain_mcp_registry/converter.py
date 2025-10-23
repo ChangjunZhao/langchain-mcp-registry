@@ -121,11 +121,10 @@ class RegistryToMCPConverter:
         if registry_type == "npm":
             # For npm packages, add -y flag for auto-install
             args.append("-y")
-            # Add package identifier with version
-            if package.version:
-                args.append(f"{package.identifier}@{package.version}")
-            else:
-                args.append(package.identifier)
+            # Add package identifier WITHOUT version for npx
+            # Note: npx with -y flag works better without @version suffix
+            # as version pinning can cause tool loading issues
+            args.append(package.identifier)
 
         elif registry_type == "pypi":
             # For Python packages, use -m module_name
