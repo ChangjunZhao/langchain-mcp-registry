@@ -28,6 +28,7 @@ class RegistryToMCPConverter:
         "npm": "npx",
         "python": "python",
         "python3": "python3",
+        "uvx": "uvx",  # Astral's uv package runner (like npx for Python)
         "docker": "docker",
         "node": "node",
     }
@@ -127,11 +128,17 @@ class RegistryToMCPConverter:
             args.append(package.identifier)
 
         elif registry_type == "pypi":
-            # For Python packages, use -m module_name
-            args.append("-m")
-            # Convert package name to module name (replace - with _)
-            module_name = package.identifier.replace("-", "_")
-            args.append(module_name)
+            # For Python packages, check runtime hint
+            # uvx runs packages directly (no -m flag), traditional python needs -m
+            if package.runtime_hint == "uvx":
+                # uvx runs packages directly, no -m flag needed
+                args.append(package.identifier)
+            else:
+                # Traditional Python: use -m module_name
+                args.append("-m")
+                # Convert package name to module name (replace - with _)
+                module_name = package.identifier.replace("-", "_")
+                args.append(module_name)
 
         elif registry_type in ("docker", "oci"):
             # For Docker, just add the image identifier
