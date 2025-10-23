@@ -89,6 +89,16 @@ class RegistryToMCPConverter:
 
             # Check if it's an absolute path to an executable (for venv Python)
             if hint.startswith("/") and ("python" in hint.lower() or "bin/" in hint):
+                # For venv Python paths, check if console script exists
+                if "python" in hint.lower() and "/bin/" in hint:
+                    venv_dir = os.path.dirname(os.path.dirname(hint))  # Get venv dir from venv/bin/python
+                    console_script = os.path.join(venv_dir, "bin", package.identifier)
+
+                    # Check if console script exists and is executable
+                    if os.path.exists(console_script) and os.access(console_script, os.X_OK):
+                        logger.debug(f"Using console script: {console_script}")
+                        return console_script
+
                 logger.debug(f"Using runtime hint as full path: {hint}")
                 return hint
 
@@ -133,6 +143,25 @@ class RegistryToMCPConverter:
             if package.runtime_hint == "uvx":
                 # uvx runs packages directly, no -m flag needed
                 args.append(package.identifier)
+            elif package.runtime_hint and package.runtime_hint.startswith("/"):
+                # Check if this is a console script path or Python executable
+                if package.runtime_hint.endswith(("python", "python3")):
+                    # This is Python executable path - check if console script exists
+                    venv_dir = os.path.dirname(os.path.dirname(package.runtime_hint))
+                    console_script = os.path.join(venv_dir, "bin", package.identifier)
+
+                    if os.path.exists(console_script) and os.access(console_script, os.X_OK):
+                        # Console script exists, will be used as command - no args needed
+                        logger.debug(f"Console script detected in _build_args, skipping -m flag")
+                        pass
+                    else:
+                        # No console script, use python -m
+                        args.append("-m")
+                        module_name = package.identifier.replace("-", "_")
+                        args.append(module_name)
+                else:
+                    # This is already a console script path - no args needed
+                    pass
             else:
                 # Traditional Python: use -m module_name
                 args.append("-m")
